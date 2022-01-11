@@ -123,6 +123,12 @@ func resourceRestAPI() *schema.Resource {
 				Description: "The value at `status_error_value` indicating that a resource failed created.",
 				Optional:    true,
 			},
+			"delete_policy": {
+				Type:        schema.TypeString,
+				Default:     "delete",
+				Description: "The value at `delete_policy`: `delete` or `orphan` .",
+				Optional:    true,
+			},
 			"read_search": {
 				Type:        schema.TypeMap,
 				Description: "Custom search for `read_path`. This map will take `search_key`, `search_value`, `results_key` and `query_string` (see datasource config documentation)",
@@ -331,7 +337,10 @@ func resourceRestAPIDelete(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 	log.Printf("resource_api_object.go: Delete routine called. Object built:\n%s\n", obj.toString())
-
+	if obj.deletePolicy != "delete" {
+		log.Print("resource_api_object.go: Delete is called, but the object is reserved")
+		return nil
+	}
 	err = obj.deleteObject()
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
@@ -442,6 +451,9 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	}
 	if v, ok := d.GetOk("status_error_value"); ok {
 		opts.statusErrorValue = toStringArray(v.([]interface{}))
+	}
+	if v, ok := d.GetOk("delete_policy"); ok {
+		opts.deletePolicy = v.(string)
 	}
 
 	readSearch := expandReadSearch(d.Get("read_search").(map[string]interface{}))
