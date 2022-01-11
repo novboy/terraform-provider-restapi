@@ -106,14 +106,21 @@ func resourceRestAPI() *schema.Resource {
 				Description: "Whether to emit verbose debug output while working with the API object on the server.",
 				Optional:    true,
 			},
-			"create_ready_key": {
+			"status_key": {
 				Type:        schema.TypeString,
 				Description: "The key to observe during resource creation. As long as its value is not equal to `create_ready_value` the resource is considered as pending. Similar to other configurable keys, the value may be in the format of 'field/field/field' to search for data deeper in the returned object.",
 				Optional:    true,
 			},
-			"create_ready_value": {
-				Type:        schema.TypeString,
-				Description: "The value at `create_ready_key` indicating that a resource has been successfully created.",
+			"status_ready_value": {
+				Type:        schema.TypeList,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: "The value at `status_ready_value` indicating that a resource has been successfully created.",
+				Optional:    true,
+			},
+			"status_error_value": {
+				Type:        schema.TypeList,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: "The value at `status_error_value` indicating that a resource failed created.",
 				Optional:    true,
 			},
 			"read_search": {
@@ -224,33 +231,11 @@ func resourceRestAPICreate(d *schema.ResourceData, meta interface{}) error {
 
 	err = obj.createObject()
 	if err != nil {
-		return nil
+		return err
 	}
 
-	err = resource.Retry(d.Timeout(schema.TimeoutCreate), func() *resource.RetryError {
-		if obj.createReadyKey == "" || obj.createReadyValue == "" {
-			return nil
-		}
+	err = waitStatus(d, meta, obj)
 
-		err = obj.readObject()
-		if err != nil {
-			return resource.NonRetryableError(err)
-		} else if obj.id == "" {
-			return resource.NonRetryableError(fmt.Errorf("cannot evaluate readiness unless the ID has been set"))
-		}
-
-		readyValue, err := GetObjectAtKey(obj.apiData, obj.createReadyKey, obj.debug)
-		if err != nil {
-			return resource.NonRetryableError(err)
-		}
-
-		if fmt.Sprint(readyValue) == obj.createReadyValue {
-			/* Resource is ready and we can exit the retry loop */
-			return nil
-		} else {
-			return resource.RetryableError(fmt.Errorf("resource not yet ready - current value: %s", readyValue))
-		}
-	})
 	if err == nil {
 		/* Setting terraform ID tells terraform the object was created or it exists */
 		d.SetId(obj.id)
@@ -282,7 +267,35 @@ func resourceRestAPIRead(d *schema.ResourceData, meta interface{}) error {
 	}
 	return err
 }
+func waitStatus(d *schema.ResourceData, meta interface{}, obj *APIObject) error {
+	err := resource.Retry(d.Timeout(schema.TimeoutCreate), func() *resource.RetryError {
+		if obj.statusKey == "" || len(obj.statusReadyValue) == 0 {
+			return nil
+		}
+		err := obj.readObject()
+		if err != nil {
+			return resource.NonRetryableError(err)
+		} else if obj.id == "" {
+			return resource.NonRetryableError(fmt.Errorf("cannot evaluate readiness unless the ID has been set"))
+		}
 
+		readyValue, err := GetObjectAtKey(obj.apiData, obj.statusKey, obj.debug)
+		if err != nil {
+			return resource.NonRetryableError(err)
+		}
+
+		if contains(obj.statusReadyValue, fmt.Sprint(readyValue)) {
+			/* Resource is ready and we can exit the retry loop */
+			return nil
+		} else if len(obj.statusErrorValue) > 0 && contains(obj.statusErrorValue, fmt.Sprint(readyValue)) {
+			data, _ := json.Marshal(obj.apiData)
+			return resource.NonRetryableError(fmt.Errorf("restapi status got an error value [%s],details:\n %s", fmt.Sprint(readyValue), data))
+		} else {
+			return resource.RetryableError(fmt.Errorf("resource not yet ready - current value: %s", readyValue))
+		}
+	})
+	return err
+}
 func resourceRestAPIUpdate(d *schema.ResourceData, meta interface{}) error {
 	obj, err := makeAPIObject(d, meta)
 	if err != nil {
@@ -302,6 +315,10 @@ func resourceRestAPIUpdate(d *schema.ResourceData, meta interface{}) error {
 	log.Printf("resource_api_object.go: Update routine called. Object built:\n%s\n", obj.toString())
 
 	err = obj.updateObject()
+	if err != nil {
+		return err
+	}
+	err = waitStatus(d, meta, obj)
 	if err == nil {
 		setResourceState(obj, d)
 	}
@@ -417,9 +434,15 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	if v, ok := d.GetOk("query_string"); ok {
 		opts.queryString = v.(string)
 	}
-
-	opts.createReadyKey = d.Get("create_ready_key").(string)
-	opts.createReadyValue = d.Get("create_ready_value").(string)
+	if v, ok := d.GetOk("status_key"); ok {
+		opts.statusKey = v.(string)
+	}
+	if v, ok := d.GetOk("status_ready_value"); ok {
+		opts.statusReadyValue = toStringArray(v.([]interface{}))
+	}
+	if v, ok := d.GetOk("status_error_value"); ok {
+		opts.statusErrorValue = toStringArray(v.([]interface{}))
+	}
 
 	readSearch := expandReadSearch(d.Get("read_search").(map[string]interface{}))
 	opts.readSearch = readSearch

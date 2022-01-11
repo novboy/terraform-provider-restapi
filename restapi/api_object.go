@@ -24,8 +24,9 @@ type apiObjectOpts struct {
 	searchPath       string
 	queryString      string
 	debug            bool
-	createReadyKey   string
-	createReadyValue string
+	statusKey        string
+	statusReadyValue []string
+	statusErrorValue []string
 	readSearch       map[string]string
 	id               string
 	idAttribute      string
@@ -46,8 +47,9 @@ type APIObject struct {
 	searchPath       string
 	queryString      string
 	debug            bool
-	createReadyKey   string
-	createReadyValue string
+	statusKey        string
+	statusReadyValue []string
+	statusErrorValue []string
 	readSearch       map[string]string
 	id               string
 	idAttribute      string
@@ -115,8 +117,9 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 		searchPath:       opts.searchPath,
 		queryString:      opts.queryString,
 		debug:            opts.debug,
-		createReadyKey:   opts.createReadyKey,
-		createReadyValue: opts.createReadyValue,
+		statusKey:        opts.statusKey,
+		statusReadyValue: opts.statusReadyValue,
+		statusErrorValue: opts.statusErrorValue,
 		readSearch:       opts.readSearch,
 		id:               opts.id,
 		idAttribute:      opts.idAttribute,
@@ -173,8 +176,9 @@ func (obj *APIObject) toString() string {
 	buffer.WriteString(fmt.Sprintf("update_method: %s\n", obj.updateMethod))
 	buffer.WriteString(fmt.Sprintf("destroy_method: %s\n", obj.destroyMethod))
 	buffer.WriteString(fmt.Sprintf("debug: %t\n", obj.debug))
-	buffer.WriteString(fmt.Sprintf("create_ready_key: %s\n", obj.createReadyKey))
-	buffer.WriteString(fmt.Sprintf("create_ready_value: %s\n", obj.createReadyValue))
+	buffer.WriteString(fmt.Sprintf("status_key: %s\n", obj.statusKey))
+	buffer.WriteString(fmt.Sprintf("status_ready_value: %v\n", obj.statusReadyValue))
+	buffer.WriteString(fmt.Sprintf("status_error_value: %v\n", obj.statusErrorValue))
 	buffer.WriteString(fmt.Sprintf("read_search: %s\n", spew.Sdump(obj.readSearch)))
 	buffer.WriteString(fmt.Sprintf("data: %s\n", spew.Sdump(obj.data)))
 	buffer.WriteString(fmt.Sprintf("api_data: %s\n", spew.Sdump(obj.apiData)))
