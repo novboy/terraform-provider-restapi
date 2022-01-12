@@ -22,6 +22,7 @@ type apiObjectOpts struct {
 	destroyMethod    string
 	deletePath       string
 	deletePolicy     string
+	updatePolicy     string
 	searchPath       string
 	queryString      string
 	debug            bool
@@ -46,6 +47,7 @@ type APIObject struct {
 	destroyMethod    string
 	deletePath       string
 	deletePolicy     string
+	updatePolicy     string
 	searchPath       string
 	queryString      string
 	debug            bool
@@ -126,6 +128,7 @@ func NewAPIObject(iClient *APIClient, opts *apiObjectOpts) (*APIObject, error) {
 		readSearch:       opts.readSearch,
 		id:               opts.id,
 		idAttribute:      opts.idAttribute,
+		updatePolicy:     opts.updatePolicy,
 		data:             make(map[string]interface{}),
 		apiData:          make(map[string]interface{}),
 	}

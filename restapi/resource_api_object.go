@@ -123,6 +123,12 @@ func resourceRestAPI() *schema.Resource {
 				Description: "The value at `status_error_value` indicating that a resource failed created.",
 				Optional:    true,
 			},
+			"update_policy": {
+				Type:        schema.TypeString,
+				Description: "The value at `update_policy` indicating that a resource update policy `none` `update`,`create`,`recreate`.",
+				Default:     "update",
+				Optional:    true,
+			},
 			"delete_policy": {
 				Type:        schema.TypeString,
 				Default:     "delete",
@@ -307,7 +313,18 @@ func resourceRestAPIUpdate(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-
+	// do nothong
+	if obj.updatePolicy == "none" {
+		return nil
+	} else if obj.updatePolicy == "create" {
+		return resourceRestAPICreate(d, meta)
+	} else if obj.updatePolicy == "recreate" {
+		err = resourceRestAPIDelete(d, meta)
+		if err != nil {
+			return err
+		}
+		return resourceRestAPICreate(d, meta)
+	}
 	/* If copy_keys is not empty, we have to grab the latest
 	   data so we can copy anything needed before the update */
 	client := meta.(*APIClient)
@@ -454,6 +471,9 @@ func buildAPIObjectOpts(d *schema.ResourceData) (*apiObjectOpts, error) {
 	}
 	if v, ok := d.GetOk("delete_policy"); ok {
 		opts.deletePolicy = v.(string)
+	}
+	if v, ok := d.GetOk("update_policy"); ok {
+		opts.updatePolicy = v.(string)
 	}
 
 	readSearch := expandReadSearch(d.Get("read_search").(map[string]interface{}))
