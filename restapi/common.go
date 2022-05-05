@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -152,6 +153,11 @@ func expandStringSet(configured []interface{}) []string {
 	return expandStringList(configured)
 }
 
+func contains(s []string, searchterm string) bool {
+	i := sort.SearchStrings(s, searchterm)
+	return i < len(s) && s[i] == searchterm
+}
+
 func expandStringList(configured []interface{}) []string {
 	vs := make([]string, 0, len(configured))
 	for _, v := range configured {
@@ -161,4 +167,11 @@ func expandStringList(configured []interface{}) []string {
 		}
 	}
 	return vs
+}
+func toStringArray(data []interface{}) []string {
+	aString := make([]string, len(data))
+	for i, v := range data {
+		aString[i] = v.(string)
+	}
+	return aString
 }
